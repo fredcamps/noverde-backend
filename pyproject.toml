@@ -12,6 +12,7 @@ django-celery-results = "^1.2.1"
 djangorestframework = "^3.11.1"
 redis = "^3.5.3"
 psycopg2 = "^2.8.5"
+schema = "^0.7.3"
 
 [tool.poetry.dev-dependencies]
 black = "^19.10b0"
