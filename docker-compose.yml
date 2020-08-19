@@ -1,0 +1,76 @@
+version: '3.8'
+services:
+  dns:
+    image: defreitas/dns-proxy-server
+    hostname: dns.localdomain
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/resolv.conf:/etc/resolv.conf
+
+  api:
+    build: .
+    hostname: noverde.localdomain
+    restart: always
+    environment:
+      - HOSTNAME=noverde.localdomain
+    env_file:
+      - ./vars.env
+    ports:
+      - 8000:8000
+    depends_on:
+      - cache
+      - database
+    volumes:
+      - ./:/app
+    command: python manage.py runserver 0.0.0.0:8000
+
+  worker:
+    build: .
+    hostname: worker
+    restart: always
+    env_file:
+      - ./vars.env
+    depends_on:
+      - cache
+      - broker
+      - database
+    volumes:
+      - ./:/app
+    command: celery -A noverde_backend worker -l info
+
+  cache:
+    image: redis:6.0.6-alpine
+    hostname: cache
+    restart: always
+    env_file:
+      - ./vars.env
+    ports:
+      - 6379:6379
+    deploy:
+      replicas: 1
+
+  database:
+    image: postgres:13-alpine
+    hostname: database
+    restart: always
+    env_file:
+      - ./vars.env
+    ports:
+      - 5432:5432
+    volumes:
+      - ./scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    deploy:
+      replicas: 1
+
+  broker:
+    image: rabbitmq:3.7.27-management-alpine
+    hostname: broker
+    restart: always
+    env_file:
+      - ./vars.env
+    ports:
+      - 5672:5672
+      - 15672:15672
+    deploy:
+      replicas: 1
