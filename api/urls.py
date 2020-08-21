@@ -1,10 +1,9 @@
 """Urls from api app.
 """
 from django.urls import path
+from rest_framework.routers import DefaultRouter
 
 from api import views
 
-app_name = 'api'
-urlpatterns = [
-    path('/loan/<str:loan_id>', views.Loan.as_view()),
-]
+router = DefaultRouter()
+router.register(r'loan', views.Loan)
