@@ -1,0 +1,122 @@
+[
+    {
+        "fields": {
+            "percentage": 0.064,
+            "terms": 6,
+            "max_score": 699,
+            "min_score": 600
+        },
+        "pk": 1,
+        "model": "api.interest"
+    },
+    {
+        "fields": {
+            "percentage": 0.066,
+            "terms": 9,
+            "max_score": 699,
+            "min_score": 600
+        },
+        "pk": 2,
+        "model": "api.interest"
+    },
+    {
+        "fields": {
+            "percentage": 0.069,
+            "terms": 12,
+            "max_score": 699,
+            "min_score": 600
+        },
+        "pk": 3,
+        "model": "api.interest"
+    },
+    {
+        "fields": {
+            "percentage": 0.055,
+            "terms": 6,
+            "max_score": 799,
+            "min_score": 700
+        },
+        "pk": 4,
+        "model": "api.interest"
+    },
+    {
+        "fields": {
+            "percentage": 0.058,
+            "terms": 9,
+            "max_score": 799,
+            "min_score": 700
+        },
+        "pk": 5,
+        "model": "api.interest"
+    },
+    {
+        "fields": {
+            "percentage": 0.061,
+            "terms": 12,
+            "max_score": 799,
+            "min_score": 700
+        },
+        "pk": 6,
+        "model": "api.interest"
+    },
+    {
+        "fields": {
+            "percentage": 0.047,
+            "terms": 6,
+            "max_score": 899,
+            "min_score": 800
+        },
+        "pk": 7,
+        "model": "api.interest"
+    },
+    {
+        "fields": {
+            "percentage": 0.05,
+            "terms": 9,
+            "max_score": 899,
+            "min_score": 800
+        },
+        "pk": 8,
+        "model": "api.interest"
+    },
+    {
+        "fields": {
+            "percentage": 0.053,
+            "terms": 12,
+            "max_score": 899,
+            "min_score": 800
+        },
+        "pk": 9,
+        "model": "api.interest"
+    },
+    {
+        "fields": {
+            "percentage": 0.039,
+            "terms": 6,
+            "max_score": 1000,
+            "min_score": 900
+        },
+        "pk": 10,
+        "model": "api.interest"
+    },
+    {
+        "fields": {
+            "percentage": 0.042,
+            "terms": 9,
+            "max_score": 1000,
+            "min_score": 900
+        },
+        "pk": 11,
+        "model": "api.interest"
+    },
+    {
+        "fields": {
+            "percentage": 0.045,
+            "terms": 12,
+            "max_score": 1000,
+            "min_score": 900
+        },
+        "pk": 12,
+        "model": "api.interest"
+    }
+]

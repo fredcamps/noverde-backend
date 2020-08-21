@@ -3,49 +3,65 @@
 schemas.py
 """
 from decimal import Decimal
+from typing import List
 
-from schema import Schema, And
+from schema import And, Or, Schema
 
+from api.validators import (
+    validate_amount,
+    validate_birthdate,
+    validate_cpf,
+    validate_terms,
+)
 
 PostLoanRequest = Schema(
     {
         'name': And(str, len),
-        'cpf': str,
-        'birthdate': str,
-        'amount': Decimal,
-        'terms': int,
-        'income': Decimal,
+        'cpf': And(str, validate_cpf),
+        'birthdate': And(str, validate_birthdate),
+        'amount': And(Decimal, validate_amount),
+        'terms': And(int, validate_terms),
+        'income': And(Decimal, lambda inc: inc >= 1),
     },
 )
 
+PostLoanSucessResponse = Schema(
+    {
+        'id': str,
+    },
+)
 
-GetLoanRequest = Schema(
+PostLoanErrorResponse = Schema(
+    {
+        'errors': List,
+    },
+)
+
+GetLoanResponse = Schema(
     {
         'id': str,
         'status': str,
-        'result': str,
-        'refused_policy': str,
-        'amount': Decimal,
-        'terms': int,
+        'result': Or(str, None),
+        'refused_policy': Or(str, None),
+        'amount': Or(Decimal, None),
+        'terms': Or(int, None),
     },
 )
-
-PostAgeRequest = Schema(
-    {
-        'age': int,
-    },
-)
-
 
 PostScoreRequest = Schema(
     {
-        'cpf': str,
+        'cpf': And(str, validate_cpf),
     },
 )
 
-
 PostCommitmentRequest = Schema(
     {
-        'cpf': str,
+        'cpf': And(str, validate_cpf),
+    },
+)
+
+DefaultResponse = Schema(
+    {
+        'message': str,
     },
 )
