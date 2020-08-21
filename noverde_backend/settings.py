@@ -124,7 +124,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 EXTERNAL_API_URL = 'https://challenge.noverde.name'
-EXTERNAL_API_TOKEN = 'z2qcDsl6BK8FEPynp2ND17WvcJKMQTpjT5lcyQ0d'
+EXTERNAL_API_TOKEN = environ.get('EXTERNAL_API_TOKEN')
 
 FIXTURE_DIRS = [
     path.join(BASE_DIR, 'fixtures')
