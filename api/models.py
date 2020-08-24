@@ -44,6 +44,15 @@ class Loan(models.Model, LoanStateMachine):
         null=True,
         validators=[MinValueValidator(0), MaxValueValidator(1000)],
     )
+    commitment = models.DecimalField(
+        validators=[
+            MinValueValidator(Decimal('0.01')),
+            MaxValueValidator(Decimal('0.99')),
+        ],
+        max_digits=3,
+        decimal_places=2,
+        null=True,
+    )
     terms = models.IntegerField(validators=[MinValueValidator(1)])
     income = models.DecimalField(
         max_digits=6,
