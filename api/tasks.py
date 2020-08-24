@@ -2,6 +2,8 @@
 """
 import logging
 
+from celery import chain
+
 from api import consts, logic
 from noverde_backend.celery import app
 
@@ -13,8 +15,7 @@ def send_to_credit_analysis(loan_id: str) -> None:
 
     :param loan_id: uuid of loan
     """
-    chain = age_policy.s(loan_id) | score_policy.s(loan_id) | commitment_policy(loan_id)  # noqa: WPS221
-    chain()
+    chain(age_policy.si(loan_id), score_policy.si(loan_id), commitment_policy.si(loan_id))()
 
 
 @app.task(queue='age_policy', name='age_policy', bind=True, max_retries=consts.MAX_RETRIES)
@@ -28,7 +29,6 @@ def age_policy(self, loan_id: str) -> None:
         logic.start_age_policy(loan_id)
     except logic.APIException as exception:
         logger.exception(exception)
-        self.retry()
 
 
 @app.task(queue='score_policy', name='score_policy', bind=True, max_retries=consts.MAX_RETRIES)
@@ -42,7 +42,6 @@ def score_policy(self, loan_id: str) -> None:
         logic.start_score_policy(loan_id)
     except logic.APIException as exception:
         logger.exception(exception)
-        self.retry()
 
 
 @app.task(
@@ -61,4 +60,3 @@ def commitment_policy(self, loan_id: str) -> None:
         logic.start_commitment_policy(loan_id)
     except logic.APIException as exception:
         logger.exception(exception)
-        self.retry()
