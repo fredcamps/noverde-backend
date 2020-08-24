@@ -1,17 +1,13 @@
 """logic.py unit tests.
 """
-import json
 from decimal import Decimal
 from typing import Tuple
 
 import pytest
-from mixer.backend.django import mixer
-from pytest_mock.plugin import MockFixture
+from pytest_mock.plugin import MockerFixture
 
 from api import logic
-from api.models import Policy, Loan
 from api.logic import APIException, CommitmentService, ScoreService, ValidationError
-from api.helpers import convert_str_date_to_object
 
 
 @pytest.mark.django_db()
@@ -135,7 +131,7 @@ def test_start_age_policy_should_handle_validation_error(loans: Tuple) -> None: 
 
 
 @pytest.mark.django_db()
-def test_start_score_policy_should_validate_score(policies: Tuple, mocker: MockFixture) -> None:
+def test_start_score_policy_should_validate_score(policies: Tuple, mocker: MockerFixture) -> None:
     """Test if start score policy validates score.
 
     :param policies: a fixture that contains a immutable list of policies
@@ -158,7 +154,7 @@ def test_start_score_policy_should_validate_score(policies: Tuple, mocker: MockF
 @pytest.mark.django_db()
 def test_start_score_policy_should_handle_validation_error(  # noqa: WPS118
     policies: Tuple,
-    mocker: MockFixture,
+    mocker: MockerFixture,
 ) -> None: # noqa
     """Test if start_score_policy handles validation error.
 
@@ -180,7 +176,7 @@ def test_start_score_policy_should_handle_validation_error(  # noqa: WPS118
 @pytest.mark.django_db()
 def test_start_score_policy_should_handle_api_exception(  # noqa: WPS118
     policies: Tuple,
-    mocker: MockFixture,
+    mocker: MockerFixture,
 ) -> None:
     """Test if start_score_policy handles api exception.
 
@@ -202,7 +198,7 @@ def test_start_score_policy_should_handle_api_exception(  # noqa: WPS118
 @pytest.mark.django_db()
 def test_start_commitment_policy_should_validate_commitment(   # noqa: WPS118
     policies: Tuple,
-    mocker: MockFixture,
+    mocker: MockerFixture,
     interests: str,
 ) -> None:
     """Test if start_commitment_policy validates commitment.
@@ -233,7 +229,7 @@ def test_start_commitment_policy_should_validate_commitment(   # noqa: WPS118
 @pytest.mark.django_db()
 def test_start_commitment_policy_should_handle_validation_error(  # noqa: WPS118
     policies: Tuple,
-    mocker: MockFixture,
+    mocker: MockerFixture,
     interests: str,
 ) -> None:
     """Test if start_commitment_policy handles validation error.
@@ -260,7 +256,7 @@ def test_start_commitment_policy_should_handle_validation_error(  # noqa: WPS118
 @pytest.mark.django_db()
 def test_start_commitment_policy_should_handle_api_exception(  # noqa: WPS118
     policies: Tuple,
-    mocker: MockFixture,
+    mocker: MockerFixture,
     interests: str,
 ) -> None:
     """Test if start_commitment_policy handles api exception.

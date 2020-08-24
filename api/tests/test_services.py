@@ -3,13 +3,13 @@
 import json
 from decimal import Decimal
 
-from pytest_mock.plugin import MockFixture
+from pytest_mock.plugin import MockerFixture
 from rest_framework import status
 
 from api import services
 
 
-def test_score_service_should_get_succesfull_response(mocker: MockFixture) -> None:
+def test_score_service_should_get_succesfull_response(mocker: MockerFixture) -> None:
     """Test if score service should get succesfull response.
 
     :param mocker: fixture that contains Mock utility
@@ -34,7 +34,7 @@ def test_score_service_should_get_succesfull_response(mocker: MockFixture) -> No
     assert expected_response == response
 
 
-def test_commitment_service_should_get_succesfull_response(mocker: MockFixture) -> None:
+def test_commitment_service_should_get_succesfull_response(mocker: MockerFixture) -> None:
     """Test if commitment service should get succesfull response.
 
     :param mocker: fixture that contains Mock utility
