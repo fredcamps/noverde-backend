@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 from validate_docbr import CPF
 
 from api.consts import MAX_AMOUNT, MIN_AMOUNT, MIN_SCORE, MINIMUM_AGE
-from api.helpers import convert_str_date_to_object
+from api.helpers import calculate_age_by_date, convert_str_date_to_object
 
 
 def validate_age(birthdate: datetime) -> bool:
@@ -17,11 +17,9 @@ def validate_age(birthdate: datetime) -> bool:
     :raises ValidationError: exception excepted when age is not on minimum rule.
     :return: always return True
     """
-    today = datetime.today()
-    diff = ((today.month, today.day) < (birthdate.month, birthdate.day))
-    age = today.year - birthdate.year - diff
+    age = calculate_age_by_date(birthdate)
     if age < MINIMUM_AGE:
-        raise ValidationError('The age is lower than {0} years'.format(MINIMUM_AGE))
+        raise ValidationError('The age {0} is lower than {1} years'.format(age, MINIMUM_AGE))
 
     return True
 
@@ -78,6 +76,6 @@ def validate_score(score: int) -> bool:
     :return: always return True
     """
     if score < MIN_SCORE:
-        raise ValidationError('The score is lower than {0}'.format(MIN_SCORE))
+        raise ValidationError('Score {0} is lower than {1}'.format(score, MIN_SCORE))
 
     return True
