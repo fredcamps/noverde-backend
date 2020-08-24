@@ -37,7 +37,7 @@ services:
       - database
     volumes:
       - ./:/app
-    command: celery -A noverde_backend worker -l info
+    command: celery -A noverde_backend worker -l info -Q celery,age_policy,score_policy,commitment_policy
 
   cache:
     image: redis:6.0.6-alpine
