@@ -6,8 +6,8 @@ from rest_framework.urlpatterns import format_suffix_patterns
 from api.views import LoanDetailView, LoanRequireView
 
 urlpatterns = [
-    path('/loan', LoanDetailView.as_view()),
-    path('/loan/<str:loan_id>', LoanRequireView.as_view()),
+    path('/loan', LoanRequireView.as_view()),
+    path('/loan/<str:id>', LoanDetailView.as_view()),
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)
