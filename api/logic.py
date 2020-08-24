@@ -2,12 +2,16 @@
 
 logic.py
 """
+import json
 from decimal import Decimal
-from typing import List
+from typing import Dict, List
+from uuid import UUID
 
 from django.core.exceptions import ValidationError
-from django.db.models import Count  # noqa: WPS347
+from django.db.models import Count
+from rest_framework.exceptions import APIException
 
+from api.helpers import convert_str_date_to_object
 from api.enums import LoanPolicies
 from api.models import (
     Interest as InterestModel,
@@ -15,7 +19,8 @@ from api.models import (
     Policy as PolicyModel,
     Proposal as ProposalModel,
 )
-from api.validators import validate_age
+from api.validators import validate_age, validate_score
+from api.services import CommitmentService, ScoreService
 
 
 def get_interest_rate(score: int, terms: int) -> Decimal:
@@ -75,7 +80,7 @@ def get_proposal_terms(loan: LoanModel, commitment: Decimal) -> int:
 
     :param loan: a loan model object.
     :param commitment: percentage of commitment
-    :raises ValueError: exception for no terms found for commitment rate
+    :raises ValidationError: exception for no terms found for commitment rate
     :return: a integer that represents proposal term.
     """
     limit_installment = loan.income - (loan.income * commitment)
@@ -90,72 +95,131 @@ def get_proposal_terms(loan: LoanModel, commitment: Decimal) -> int:
         if installment <= limit_installment:
             return terms
 
-    raise ValueError('No terms found for commitment rate!')
+    raise ValidationError('No terms found for commitment rate!')
 
 
-def start_age_policy(loan_id: str) -> None:
+def _generate_policy(loan: LoanModel, policy_name: str) -> PolicyModel:
+    policy = PolicyModel()
+    policy.name = policy_name
+    policy.response = json.dumps({})  # noqa: P103
+    policy.loan = loan
+    policy.save()
+    return policy
+
+
+def _handle_api_exception(policy: PolicyModel, api_exception: APIException) -> None:
+    policy.response = json.dumps({'error': str(api_exception)})
+    policy.failed = True
+    policy.save()
+
+
+def _handle_validation_error(policy: PolicyModel, error: ValidationError) -> None:
+    policy.response = json.dumps({'error': str(error)})
+    policy.save()
+    loan = policy.loan
+    loan.refused_policy = policy.name
+    loan.refuse()
+    loan.save()
+
+
+def start_age_policy(loan_id: str) -> LoanModel:
     """Starts the age check policy.
 
     :param loan_id: id of loan
+    :return: A model object with loan registry
     """
-    loan = LoanModel.objects.get(pk=loan_id)
-    policy = PolicyModel()
-    policy.name = LoanPolicies.age.value
-    policy.body = '{}'  # noqa: P103
-    policy.loan = loan
-    policy.save()
+    loan = LoanModel.objects.get(pk=UUID(loan_id))
+    policy = _generate_policy(loan, LoanPolicies.age.value)
     try:
         validate_age(loan.birthdate)
-    except ValidationError:
-        loan.refuse_policy = LoanPolicies.age.value
-        loan.refuse()
-        loan.save()
-        return
+    except ValidationError as error:
+        _handle_validation_error(policy, error)
+        return loan
 
     loan.process_age()
     loan.save()
+
+    return loan
+
+
+def get_loan(loan_id: UUID) -> LoanModel:
+    """Get loan by id.
+
+    :param loan_id: UUID object
+    :return: A model object of loan
+    """
+    return LoanModel.objects.get(pk=loan_id)
+
+
+def create_loan(loan_data: Dict) -> LoanModel:
+    """Creates a new loan.
+
+    :param loan_data: loan data
+    :return: loan model
+    """
+    loan = LoanModel()
+    loan.name = loan_data.get('name')
+    loan.cpf = loan_data.get('cpf')
+    loan.birthdate = convert_str_date_to_object(date=loan_data.get('birthdate'))
+    loan.income = loan_data.get('income')
+    loan.amount = loan_data.get('amount')
+    loan.terms = loan_data.get('terms')
+    loan.save()
+    return loan
 
 
 def start_score_policy(loan_id: str) -> None:
     """Starts the age policy check.
 
     :param loan_id: id of loan
+    :raises APIException: raises when service get unexpected response
+    :return: A model object with loan registry
     """
-    loan = LoanModel.objects.get(pk=loan_id)
-    policy = PolicyModel()
-    policy.name = LoanPolicies.score.value
+    loan = get_loan(UUID(loan_id))
+    service = ScoreService()
+    policy = _generate_policy(loan, LoanPolicies.score.value)
     try:
-        # call service and validator here
-        loan.score = 600
-    except (ValidationError):
-        policy.body = '{}'
-        policy.save()
+        response = service.request(request_data={'cpf': loan.cpf})
+    except APIException as api_exception:
+        _handle_api_exception(policy, api_exception)
+        raise api_exception
 
+    try:
+        validate_score(response.get('score'))
+    except ValidationError as error:
+        _handle_validation_error(policy, error)
+        return loan
+
+    loan.score = response.get('score')
     loan.process_score()
     loan.save()
 
+    return loan
 
-def start_commitment_policy(loan_id: str) -> None:
+
+def start_commitment_policy(loan_id: str) -> None:  # noqa: WPS210
     """Starts commitment check policy.
 
     :param loan_id: id of loan
+    :raises APIException: raises when service get unexpected response
+    :return: A model object with loan registry
     """
-    loan = LoanModel.objects.get(pk=loan_id)
-    policy = PolicyModel()
-    policy.name = LoanPolicies.commitment.value
+    loan = get_loan(UUID(loan_id))
+    service = CommitmentService()
+    policy = _generate_policy(loan, LoanPolicies.commitment.value)
     try:
-        # call service and validator here
-        commitment = Decimal('0.8')
-        loan.commitment = commitment
-        terms = get_proposal_terms(loan=loan, commitment=commitment)
-    except ValidationError:
-        policy.body = '{}'
-        policy.save()
-        loan.refused_policy = LoanPolicies.commitment.value
-        loan.refuse()
-        loan.save()
-        return
+        response = service.request(request_data={'cpf': loan.cpf})
+    except APIException as api_exception:
+        _handle_api_exception(policy, api_exception)
+        raise api_exception
 
+    try:
+        terms = get_proposal_terms(loan=loan, commitment=response.get('commitment'))
+    except (ValidationError, ValueError) as error:
+        _handle_validation_error(policy, error)
+        return loan
+
+    loan.commitment = response.get('commitment')
     loan.approve()
     loan.save()
 
@@ -164,3 +228,5 @@ def start_commitment_policy(loan_id: str) -> None:
     proposal.amount = loan.amount
     proposal.terms = terms
     proposal.save()
+
+    return loan
