@@ -21,7 +21,7 @@ def get_some_loans() -> Tuple[Any, ...]:
             model_path,
             name='Fulano de Tal',
             cpf='26443567099',
-            birthdate=convert_str_date_to_object(date='2012-01-01'),
+            birthdate=convert_str_date_to_object(date='2020-01-01'),
             income=Decimal('1000.00'),  # noqa: WPS432, WPS339, WPS204
             amount=Decimal('1000.00'),  # noqa: WPS432, WPS339
             terms=12,  # noqa: WPS432

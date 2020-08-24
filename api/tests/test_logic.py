@@ -1,12 +1,17 @@
 """logic.py unit tests.
 """
+import json
 from decimal import Decimal
 from typing import Tuple
 
 import pytest
+from mixer.backend.django import mixer
+from pytest_mock.plugin import MockFixture
 
 from api import logic
-from api.models import Loan
+from api.models import Policy, Loan
+from api.logic import APIException, CommitmentService, ScoreService, ValidationError
+from api.helpers import convert_str_date_to_object
 
 
 @pytest.mark.django_db()
@@ -102,7 +107,178 @@ def test_get_proposal_terms_should_raise_value_error(interests: str, loans: Tupl
     loan = loans[-2]
     loan.score = 600
     loan.save()
-    with pytest.raises(ValueError, match='No terms found for commitment rate!'):
+    with pytest.raises(ValidationError, match='No terms found for commitment rate!'):
         logic.get_proposal_terms(loan=loan, commitment=Decimal('0.8'))
 
     assert interests == 'interests'
+
+
+@pytest.mark.django_db()
+def test_start_age_policy_should_validate_age(loans: Tuple) -> None:
+    """Test if start_age_policy validates age.
+
+    :param loans: a fixture that contains a immutable list of loans
+    """
+    loan = logic.start_age_policy(loan_id=str(loans[-2].id))
+    assert loan.state == 'processing_score'
+
+
+@pytest.mark.django_db()
+def test_start_age_policy_should_handle_validation_error(loans: Tuple) -> None:  # noqa: WPS118
+    """Test if start_age_policy handles validation error.
+
+    :param loans: a fixture that contains a immutable list of loans
+    """
+    loan = logic.start_age_policy(loan_id=str(loans[0].id))
+    assert loan.refused_policy == 'age'
+    assert loan.state == 'refused'
+
+
+@pytest.mark.django_db()
+def test_start_score_policy_should_validate_score(policies: Tuple, mocker: MockFixture) -> None:
+    """Test if start score policy validates score.
+
+    :param policies: a fixture that contains a immutable list of policies
+    :param mocker: fixture that contains Mock utility
+    """
+    policy = policies[-2]
+    policy.loan.process_age()
+    policy.loan.save()
+    expected_response = {'score': 701}
+    mocked_loan = mocker.patch('api.logic.get_loan', return_value=policy.loan)
+    mocked_service = mocker.patch.object(ScoreService, 'request', return_value=expected_response)
+    processed_loan = logic.start_score_policy(loan_id=str(policy.loan.id))
+    mocked_loan.assert_called_once_with(policy.loan.id)
+    mocked_service.assert_called_once_with(request_data={'cpf': policy.loan.cpf})
+
+    assert processed_loan.state == 'processing_commitment'
+    assert processed_loan.score == expected_response.get('score')
+
+
+@pytest.mark.django_db()
+def test_start_score_policy_should_handle_validation_error(  # noqa: WPS118
+    policies: Tuple,
+    mocker: MockFixture,
+) -> None: # noqa
+    """Test if start_score_policy handles validation error.
+
+    :param policies: a fixture that contains a immutable list of policies
+    :param mocker: fixture that contains Mock utility
+    """
+    policy = policies[-2]
+    policy.loan.process_age()
+    policy.loan.save()
+    expected_response = {'score': 100}
+    mocked_loan = mocker.patch('api.logic.get_loan', return_value=policy.loan)
+    mocked_service = mocker.patch.object(ScoreService, 'request', return_value=expected_response)
+    logic.start_score_policy(loan_id=str(policy.loan.id))
+    mocked_loan.assert_called_once_with(policy.loan.id)
+    mocked_service.assert_called_once_with(request_data={'cpf': policy.loan.cpf})
+    assert policy.loan.refused_policy == 'score'
+
+
+@pytest.mark.django_db()
+def test_start_score_policy_should_handle_api_exception(  # noqa: WPS118
+    policies: Tuple,
+    mocker: MockFixture,
+) -> None:
+    """Test if start_score_policy handles api exception.
+
+    :param policies: a fixture that contains a immutable list of policies
+    :param mocker: fixture that contains Mock utility
+    """
+    policy = policies[-2]
+    policy.loan.process_age()
+    policy.loan.save()
+    mocked_loan = mocker.patch('api.logic.get_loan', return_value=policy.loan)
+    mocked_service = mocker.patch.object(ScoreService, 'request', side_effect=APIException('A'))
+    with pytest.raises(APIException, match='A'):
+        logic.start_score_policy(loan_id=str(policy.loan.id))
+
+    mocked_loan.assert_called_once_with(policy.loan.id)
+    mocked_service.assert_called_once_with(request_data={'cpf': policy.loan.cpf})
+
+
+@pytest.mark.django_db()
+def test_start_commitment_policy_should_validate_commitment(   # noqa: WPS118
+    policies: Tuple,
+    mocker: MockFixture,
+    interests: str,
+) -> None:
+    """Test if start_commitment_policy validates commitment.
+
+    :param interests: a loaddata setup fixture
+    :param policies: a fixture that contains a immutable list of policies
+    :param mocker: fixture that contains Mock utility
+    """
+    policy = policies[-1]
+    policy.loan.score = 701
+    policy.loan.process_age()
+    policy.loan.process_score()
+    policy.loan.save()
+    expected_response = {'commitment': Decimal('0.2')}
+    mocked_loan = mocker.patch('api.logic.get_loan', return_value=policy.loan)
+    mocked_service = mocker.patch.object(
+        CommitmentService,
+        'request',
+        return_value=expected_response,
+    )
+    loan = logic.start_commitment_policy(loan_id=str(policy.loan.id))
+    mocked_loan.assert_called_once_with(policy.loan.id)
+    mocked_service.assert_called_once_with(request_data={'cpf': policy.loan.cpf})
+    assert loan.state == 'approved'
+    assert interests == 'interests'
+
+
+@pytest.mark.django_db()
+def test_start_commitment_policy_should_handle_validation_error(  # noqa: WPS118
+    policies: Tuple,
+    mocker: MockFixture,
+    interests: str,
+) -> None:
+    """Test if start_commitment_policy handles validation error.
+
+    :param interests: a loaddata setup fixture
+    :param policies: a fixture that contains a immutable list of policies
+    :param mocker: fixture that contains Mock utility
+    """
+    policy = policies[-1]
+    mocked_loan = mocker.patch('api.logic.get_loan', return_value=policy.loan)
+    mocked_service = mocker.patch.object(
+        CommitmentService,
+        'request',
+        return_value={'commitment': Decimal('0.99')},
+    )
+    loan = logic.start_commitment_policy(loan_id=str(policy.loan.id))
+    mocked_loan.assert_called_once_with(policy.loan.id)
+    mocked_service.assert_called_once_with(request_data={'cpf': policy.loan.cpf})
+    assert loan.state == 'refused'
+    assert loan.refused_policy == 'commitment'
+    assert interests == 'interests'
+
+
+@pytest.mark.django_db()
+def test_start_commitment_policy_should_handle_api_exception(  # noqa: WPS118
+    policies: Tuple,
+    mocker: MockFixture,
+    interests: str,
+) -> None:
+    """Test if start_commitment_policy handles api exception.
+
+    :param interests: a loaddata setup fixture
+    :param policies: a fixture that contains a immutable list of policies
+    :param mocker: fixture that contains Mock utility
+    """
+    policy = policies[-1]
+    mocked_loan = mocker.patch('api.logic.get_loan', return_value=policy.loan)
+    mocked_service = mocker.patch.object(
+        CommitmentService,
+        'request',
+        side_effect=APIException('A'),
+    )
+    with pytest.raises(APIException, match='A'):
+        logic.start_commitment_policy(loan_id=str(policy.loan.id))
+
+    assert interests == 'interests'
+    mocked_loan.assert_called_once_with(policy.loan.id)
+    mocked_service.assert_called_once_with(request_data={'cpf': policy.loan.cpf})

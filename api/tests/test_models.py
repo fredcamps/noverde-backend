@@ -80,7 +80,6 @@ def test_loan_should_not_process_age(loans: Tuple) -> None:
 
     loan2 = loans[-1]
     loan2.process_age()
-    loan2.age =
     loan2.save()
 
     assert loan1.status == 'processing'
