@@ -141,10 +141,8 @@ def test_start_score_policy_should_validate_score(policies: Tuple, mocker: Mocke
     policy.loan.process_age()
     policy.loan.save()
     expected_response = {'score': 701}
-    mocked_loan = mocker.patch('api.logic.get_loan', return_value=policy.loan)
     mocked_service = mocker.patch.object(ScoreService, 'request', return_value=expected_response)
     processed_loan = logic.start_score_policy(loan_id=str(policy.loan.id))
-    mocked_loan.assert_called_once_with(policy.loan.id)
     mocked_service.assert_called_once_with(request_data={'cpf': policy.loan.cpf})
 
     assert processed_loan.state == 'processing_commitment'
@@ -165,12 +163,10 @@ def test_start_score_policy_should_handle_validation_error(  # noqa: WPS118
     policy.loan.process_age()
     policy.loan.save()
     expected_response = {'score': 100}
-    mocked_loan = mocker.patch('api.logic.get_loan', return_value=policy.loan)
     mocked_service = mocker.patch.object(ScoreService, 'request', return_value=expected_response)
-    logic.start_score_policy(loan_id=str(policy.loan.id))
-    mocked_loan.assert_called_once_with(policy.loan.id)
+    loan = logic.start_score_policy(loan_id=str(policy.loan.id))
     mocked_service.assert_called_once_with(request_data={'cpf': policy.loan.cpf})
-    assert policy.loan.refused_policy == 'score'
+    assert loan.refused_policy == 'score'
 
 
 @pytest.mark.django_db()
@@ -186,12 +182,10 @@ def test_start_score_policy_should_handle_api_exception(  # noqa: WPS118
     policy = policies[-2]
     policy.loan.process_age()
     policy.loan.save()
-    mocked_loan = mocker.patch('api.logic.get_loan', return_value=policy.loan)
     mocked_service = mocker.patch.object(ScoreService, 'request', side_effect=APIException('A'))
     with pytest.raises(APIException, match='A'):
         logic.start_score_policy(loan_id=str(policy.loan.id))
 
-    mocked_loan.assert_called_once_with(policy.loan.id)
     mocked_service.assert_called_once_with(request_data={'cpf': policy.loan.cpf})
 
 
@@ -213,14 +207,12 @@ def test_start_commitment_policy_should_validate_commitment(   # noqa: WPS118
     policy.loan.process_score()
     policy.loan.save()
     expected_response = {'commitment': Decimal('0.2')}
-    mocked_loan = mocker.patch('api.logic.get_loan', return_value=policy.loan)
     mocked_service = mocker.patch.object(
         CommitmentService,
         'request',
         return_value=expected_response,
     )
     loan = logic.start_commitment_policy(loan_id=str(policy.loan.id))
-    mocked_loan.assert_called_once_with(policy.loan.id)
     mocked_service.assert_called_once_with(request_data={'cpf': policy.loan.cpf})
     assert loan.state == 'approved'
     assert interests == 'interests'
@@ -239,14 +231,12 @@ def test_start_commitment_policy_should_handle_validation_error(  # noqa: WPS118
     :param mocker: fixture that contains Mock utility
     """
     policy = policies[-1]
-    mocked_loan = mocker.patch('api.logic.get_loan', return_value=policy.loan)
     mocked_service = mocker.patch.object(
         CommitmentService,
         'request',
         return_value={'commitment': Decimal('0.99')},
     )
     loan = logic.start_commitment_policy(loan_id=str(policy.loan.id))
-    mocked_loan.assert_called_once_with(policy.loan.id)
     mocked_service.assert_called_once_with(request_data={'cpf': policy.loan.cpf})
     assert loan.state == 'refused'
     assert loan.refused_policy == 'commitment'
@@ -266,7 +256,6 @@ def test_start_commitment_policy_should_handle_api_exception(  # noqa: WPS118
     :param mocker: fixture that contains Mock utility
     """
     policy = policies[-1]
-    mocked_loan = mocker.patch('api.logic.get_loan', return_value=policy.loan)
     mocked_service = mocker.patch.object(
         CommitmentService,
         'request',
@@ -276,5 +265,4 @@ def test_start_commitment_policy_should_handle_api_exception(  # noqa: WPS118
         logic.start_commitment_policy(loan_id=str(policy.loan.id))
 
     assert interests == 'interests'
-    mocked_loan.assert_called_once_with(policy.loan.id)
     mocked_service.assert_called_once_with(request_data={'cpf': policy.loan.cpf})

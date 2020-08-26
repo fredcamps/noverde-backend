@@ -37,7 +37,8 @@ class LoanStateMachine(Machine):
     def __init__(self) -> None:
         """Loan state machine constructor.
         """
-        super().__init__(model=self, states=self.states, initial=self.states[0])
+        initial_state = self.state or self.states[0]
+        super().__init__(model=self, states=self.states, initial=initial_state)
         self.add_transition(
             trigger='refuse',
             source=LOAN_PROCESSING_STATES,
